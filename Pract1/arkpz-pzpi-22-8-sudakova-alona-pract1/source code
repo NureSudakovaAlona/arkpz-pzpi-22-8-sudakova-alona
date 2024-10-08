@@ -6,7 +6,6 @@ class Foo {
   Bar: number;
   Baz() { }
 }
-
 // Гарний приклад
 let fooVar;
 function barFunc() { }
@@ -14,7 +13,6 @@ class Foo {
   bar: number;
   baz() { }
 }
-
 
 //рекомендація 2 - PascalCase
 // Поганий приклад
@@ -24,7 +22,6 @@ enum notificationTypes {
   Success = 1,
   Error = 2
 }
-
 // Гарний приклад
 class Foo { }
 enum NotificationTypes {
@@ -33,7 +30,6 @@ enum NotificationTypes {
   error = 2
 }
 
-
 //рекомендація 3 - оператор let замість var
 // Поганий приклад
 var x = 10;
@@ -41,7 +37,6 @@ if (true) {
   var x = 20;  // змінна x змінюється
 }
 console.log(x); // 20
-
 // Гарний приклад
 let y = 10;
 if (true) {
@@ -49,35 +44,31 @@ if (true) {
 }
 console.log(y); // 10 
 
-
 //рекомендація 4 - використовувати типізацію
 // Поганий приклад 
 let message = "Hello, world!"; // Не вказано тип 
 // Гарний приклад 
 let message: string = "Hello, world!"; // Вказано тип string
 
-
 //рекомендація 5 - не додавати непотрібний контекст
 // Поганий приклад:
-	type Car = {
-  carMake: string;
-  carModel: string;
-  carColor: string;
+type Student = {
+  studentGender: string;
+  studentSurname: string;
+  studentName: string;
 }
-function print(car: Car): void {
-  console.log(`${car.carMake} ${car.carModel} (${car.carColor})`);
+function print(student: Student): void {
+  (`${student.studentGender} ${student.studentSurname} ${student.studentName}`);
 }
-
 // Гарний приклад:
-type Car = {
-  make: string;
-  model: string;
-  color: string;
+type Student = {
+   gender: string;
+   surname: string;
+   name: string;
 }
-function print(car: Car): void {
-  console.log(`${car.make} ${car.model} (${car.color})`);
-}
-
+function print(student: Student): void {
+   console.log(`${student.gender} ${student.surname} ${student.name}`);
+19 }
 
 //рекомендація 6 - уникати негативних умовних речень
 // Поганий приклад
@@ -89,7 +80,6 @@ if (!isNotLoggedIn) {
 } else {
   // Зробити щось, якщо не війшов у систему
 }
-
 // Гарний приклад
 function isAdmin(user: User): boolean {
   return user.role === 'admin';
@@ -99,7 +89,6 @@ if (isLoggedIn) {
 } else {
   // Зробити щось, якщо не війшов у систему
 }
-
 
 //рекомендація 7 - використовувати принцип єдиної відповідальності (single-responsibility principle)
 // Поганий приклад
@@ -114,7 +103,6 @@ class Student {
     // логіка генерації даних про студента
   }
 }
-
 // Гарний приклад
 class StudentAccount {
   public createStudentAccount(){
@@ -132,12 +120,10 @@ class StudentData {
   }
 }
 
-
 //рекомендація 8 - уникати тип «any», коли це можливо
 // Поганий приклад
 let message: any = "Hello, world!";
 message = 123; // Не видасть помилку
-
 // Гарний приклад
 let message: string = "Hello, world!";
 // message = 123; // Це призведе до помилки під час компіляції
