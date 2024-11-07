@@ -1,0 +1,225 @@
+//Метод «Видалення присвоєнь параметрам» 
+//Код до рефакторингу
+private void CalculateAndSetPrice()
+{
+    int price = basePrice;  // початкова ціна туру
+    int selectedPlaces = (int)numericUpDownPlacesO.Value;
+    
+    if (selectedPlaces > 1)
+    {
+        // Якщо більше одного місця, збільшуємо ціну
+        price = (int)(price * (1 + 0.3 * (selectedPlaces - 1)));
+    }
+
+    // Задаємо кінцеву ціну для текстового поля
+    textBoxCalculatedPrice.Text = price.ToString();
+}
+
+//Код після рефакторингу
+private void CalculateAndSetPrice()
+{
+    int initialPrice = basePrice;  // початкова ціна туру
+    int selectedPlaces = (int)numericUpDownPlacesO.Value;
+    
+    int calculatedPrice = initialPrice;  // кінцева обчислена ціна
+    
+    if (selectedPlaces > 1)
+    {
+        // Якщо більше одного місця, збільшуємо кінцеву ціну
+        calculatedPrice = (int)(initialPrice * (1 + 0.3 * (selectedPlaces - 1)));
+    }
+
+    // Задаємо кінцеву ціну для текстового поля
+    textBoxCalculatedPrice.Text = calculatedPrice.ToString();
+}
+
+//Метод «Видалення мертвого коду»
+//Код до рефакторингу
+// Метод оновлення пароля у формі Registration, який є зайвим
+        private void UpdateUserInformation(int userId, string newPassword)
+        {
+            using (SqlConnection connection = new SqlConnection(connectionString))
+            {
+                connection.Open();
+                string updatePasswordQuery = @"
+                UPDATE AppUser SET password_user = @Password 
+                WHERE id_user = @UserId";
+
+                using (SqlCommand cmd = new SqlCommand(updatePasswordQuery, connection))
+                {
+                    cmd.Parameters.AddWithValue("@Password", newPassword);
+                    cmd.Parameters.AddWithValue("@UserId", userId);
+                    cmd.ExecuteNonQuery();
+                }
+            }
+        }
+    }
+    public class UserService
+    {
+        private readonly string connectionString = @"Data Source=F15_Plus_2;Initial Catalog=DBKursova;Integrated Security=True";
+
+        // Метод оновлення пароля централізовано в UserService
+        public void UpdatePassword(int userId, string newPassword)
+        {
+            using (SqlConnection connection = new SqlConnection(connectionString))
+            {
+                connection.Open();
+                string updatePasswordQuery = @"
+                UPDATE AppUser SET password_user = @Password 
+                WHERE id_user = @UserId";
+
+                using (SqlCommand cmd = new SqlCommand(updatePasswordQuery, connection))
+                {
+                    cmd.Parameters.AddWithValue("@Password", newPassword);
+                    cmd.Parameters.AddWithValue("@UserId", userId);
+                    cmd.ExecuteNonQuery();
+                }
+            }
+        }
+    }
+
+//Код після рефакторингу
+    public class UserService
+    {
+        private readonly string connectionString = @"Data Source=F15_Plus_2;Initial Catalog=DBKursova;Integrated Security=True";
+
+        // Централізований метод оновлення пароля, який замінює зайвий метод у формі Registration
+        public void UpdatePassword(int userId, string newPassword)
+        {
+            using (SqlConnection connection = new SqlConnection(connectionString))
+            {
+                connection.Open();
+                string updatePasswordQuery = @"
+                UPDATE AppUser SET password_user = @Password 
+                WHERE id_user = @UserId";
+
+                using (SqlCommand cmd = new SqlCommand(updatePasswordQuery, connection))
+                {
+                    cmd.Parameters.AddWithValue("@Password", newPassword);
+                    cmd.Parameters.AddWithValue("@UserId", userId);
+                    cmd.ExecuteNonQuery();
+                }
+            }
+        }
+    }
+
+
+//Метод «Об'єднання функцій у клас»
+//Код до рефакторингу
+public partial class Registration
+    {
+        private readonly string connectionString = @"Data Source=F15_Plus_2;Initial Catalog=DBKursova;Integrated Security=True";
+
+        public void AddUser(string login, string password, string name, string surname, string email)
+        {
+            using (SqlConnection connection = new SqlConnection(connectionString))
+            {
+                connection.Open();
+                string insertQuery = "INSERT INTO AppUser (login_user, password_user, name_user, surname_user, email_user) VALUES (@Login, @Password, @Name, @Surname, @Email)";
+                using (SqlCommand cmd = new SqlCommand(insertQuery, connection))
+                {
+                    cmd.Parameters.AddWithValue("@Login", login);
+                    cmd.Parameters.AddWithValue("@Password", password);
+                    cmd.Parameters.AddWithValue("@Name", name);
+                    cmd.Parameters.AddWithValue("@Surname", surname);
+                    cmd.Parameters.AddWithValue("@Email", email);
+                    cmd.ExecuteNonQuery();
+                }
+            }
+        }
+
+        public void UpdateUser(int userId, string name, string surname)
+        {
+            using (SqlConnection connection = new SqlConnection(connectionString))
+            {
+                connection.Open();
+                string updateQuery = "UPDATE AppUser SET name_user = @Name, surname_user = @Surname WHERE id_user = @UserId";
+                using (SqlCommand cmd = new SqlCommand(updateQuery, connection))
+                {
+                    cmd.Parameters.AddWithValue("@UserId", userId);
+                    cmd.Parameters.AddWithValue("@Name", name);
+                    cmd.Parameters.AddWithValue("@Surname", surname);
+                    cmd.ExecuteNonQuery();
+                }
+            }
+        }
+
+        public void DeleteUser(int userId)
+        {
+            using (SqlConnection connection = new SqlConnection(connectionString))
+            {
+                connection.Open();
+                string deleteQuery = "DELETE FROM AppUser WHERE id_user = @UserId";
+                using (SqlCommand cmd = new SqlCommand(deleteQuery, connection))
+                {
+                    cmd.Parameters.AddWithValue("@UserId", userId);
+                    cmd.ExecuteNonQuery();
+                }
+            }
+        }
+    }
+
+//Код після рефакторингу
+public class UserManager
+    {
+        private readonly string connectionString = @"Data Source=F15_Plus_2;Initial Catalog=DBKursova;Integrated Security=True";
+
+        public void AddUser(string login, string password, string name, string surname, string email)
+        {
+            using (SqlConnection connection = new SqlConnection(connectionString))
+            {
+                connection.Open();
+                string insertQuery = "INSERT INTO AppUser (login_user, password_user, name_user, surname_user, email_user) VALUES (@Login, @Password, @Name, @Surname, @Email)";
+                using (SqlCommand cmd = new SqlCommand(insertQuery, connection))
+                {
+                    cmd.Parameters.AddWithValue("@Login", login);
+                    cmd.Parameters.AddWithValue("@Password", password);
+                    cmd.Parameters.AddWithValue("@Name", name);
+                    cmd.Parameters.AddWithValue("@Surname", surname);
+                    cmd.Parameters.AddWithValue("@Email", email);
+                    cmd.ExecuteNonQuery();
+                }
+            }
+        }
+
+        public void UpdateUser(int userId, string name, string surname)
+        {
+            using (SqlConnection connection = new SqlConnection(connectionString))
+            {
+                connection.Open();
+                string updateQuery = "UPDATE AppUser SET name_user = @Name, surname_user = @Surname WHERE id_user = @UserId";
+                using (SqlCommand cmd = new SqlCommand(updateQuery, connection))
+                {
+                    cmd.Parameters.AddWithValue("@UserId", userId);
+                    cmd.Parameters.AddWithValue("@Name", name);
+                    cmd.Parameters.AddWithValue("@Surname", surname);
+                    cmd.ExecuteNonQuery();
+                }
+            }
+        }
+
+        public void DeleteUser(int userId)
+        {
+            using (SqlConnection connection = new SqlConnection(connectionString))
+            {
+                connection.Open();
+                string deleteQuery = "DELETE FROM AppUser WHERE id_user = @UserId";
+                using (SqlCommand cmd = new SqlCommand(deleteQuery, connection))
+                {
+                    cmd.Parameters.AddWithValue("@UserId", userId);
+                    cmd.ExecuteNonQuery();
+                }
+            }
+        }
+    }
+
+    public partial class Registration : Form
+    {
+        private UserManager userManager = new UserManager();
+
+        // Виклик методів UserManager для роботи з користувачами
+        public void RegisterUser()
+        {
+            userManager.AddUser("login", "password", "name", "surname", "email");
+        }
+    }
