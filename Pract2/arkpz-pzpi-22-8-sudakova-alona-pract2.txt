@@ -1,1 +1,329 @@
+﻿Міністерство освіти і науки України
+Харківський національний університет радіоелектроніки
+Катедра ПІ
 
+
+
+
+
+Звіт з практичного заняття №2
+з дисципліни «Аналіз та рефакторинг коду»
+
+
+
+
+
+
+
+Виконала: 
+ст. гр. ПЗПІ-22-8
+Судакова А.Д.
+
+Перевірив: 
+ст. викладач кат. ПІ 
+Сокорчук І.П
+
+
+Харків 2024
+     2.1 Тема роботи
+     Методи рефакторингу коду програмного забезпечення.
+     2.2 Мета роботи
+     Навчитися основним методам рефакторингу коду на основі реальних прикладів з їхніх власних програмних проєктів. Навчитися ідентифікувати проблеми в коді та використовувати відповідні методи рефакторингу для покращення його якості.
+	2.3 Хід роботи
+	Описати обрані методи рефакторингу з книги Мартина Фаулера [1] та виявити переваги їх використання. Підготувати презентацію та розмістити слайди у додатку А.
+	2.3.1 Remove Assignments to Parameters
+     Метод «Видалення присвоєнь параметрам» (рис. 1) [1, с. 268] застосовується для уникнення присвоєння нових значень змінним-параметрам, які були передані в метод. Цей метод усуває присвоєння нових значень параметрам, переданим у метод, що покращує читабельність коду та знижує ймовірність помилок. Змінні, які використовуються для різних цілей у межах одного методу, можуть викликати плутанину. Натомість краще використовувати кілька змінних з єдиною функцією.
+     
+     Рисунок 1 – Графічне відображення суті методу видалення присвоєнь параметрам
+     Код до рефакторингу:
+     У цьому прикладі змінна price використовується як для збереження початкової ціни, так і для збереження кінцевої обчисленої ціни, що створює двозначність і може бути складним для розуміння.
+      1 private void CalculateAndSetPrice()
+      2 {
+      3     int price = basePrice;  // початкова ціна туру
+      4     int selectedPlaces = (int)numericUpDownPlacesO.Value;
+      5     
+      6     if (selectedPlaces > 1)
+      7     {
+      8         // Якщо більше одного місця, збільшуємо ціну
+      9         price = (int)(price * (1 + 0.3 * (selectedPlaces - 1)));
+      10     }
+      11 
+      12     // Задаємо кінцеву ціну для текстового поля
+      13     textBoxCalculatedPrice.Text = price.ToString();
+      14 }
+      
+     Код після рефакторингу:
+     Тут змінна price розділена на дві окремі змінні: initialPrice, яка зберігає початкову ціну, і calculatedPrice, яка зберігає кінцеву обчислену ціну. Це робить код зрозумілішим, і тепер кожна змінна має лише одну відповідальність.
+      1 private void CalculateAndSetPrice()
+      2 {
+      3     int initialPrice = basePrice;  // початкова ціна туру
+      4     int selectedPlaces = (int)numericUpDownPlacesO.Value;
+      5     
+      6     int calculatedPrice = initialPrice;  // кінцева обчислена ціна
+      7     
+      8     if (selectedPlaces > 1)
+      9     {
+      10         // Якщо більше одного місця, збільшуємо кінцеву ціну
+      11         calculatedPrice = (int)(initialPrice * (1 + 0.3 * (selectedPlaces - 1)));
+      12     }
+      13 
+      14     // Задаємо кінцеву ціну для текстового поля
+      15     textBoxCalculatedPrice.Text = calculatedPrice.ToString();
+      16 }
+      
+     Переваги використання методу:
+     Покращена читабельність коду (кожна змінна виконує тільки одну функцію).
+     Менше помилок (знижується ризик випадкового переприсвоєння значення, що може призвести до логічних помилок).
+     2.3.2 Remove Dead Code
+     Метод «Видалення мертвого коду» [1, с. 266] усуває частини коду, які більше не використовуються, наприклад, застарілі функції або змінні, що більше не потрібні. Такий підхід робить код легшим для розуміння і підтримки.
+     Код до рефакторингу:
+     Логіка оновлення пароля дублюється у двох місцях: у методі UpdateUserInformation форми Registration та в методі UpdatePassword класу UserService. Це створює плутанину, оскільки важко зрозуміти, який з методів фактично використовується для оновлення пароля.
+       1 // Метод оновлення пароля у формі Registration, який є зайвим
+      2         private void UpdateUserInformation(int userId, string newPassword)
+      3         {
+      4             using (SqlConnection connection = new SqlConnection(connectionString))
+      5             {
+      6                 connection.Open();
+      7                 string updatePasswordQuery = @"
+      8                 UPDATE AppUser SET password_user = @Password 
+      9                 WHERE id_user = @UserId";
+      10 
+      11                 using (SqlCommand cmd = new SqlCommand(updatePasswordQuery, connection))
+      12                 {
+      13                     cmd.Parameters.AddWithValue("@Password", newPassword);
+      14                     cmd.Parameters.AddWithValue("@UserId", userId);
+      15                     cmd.ExecuteNonQuery();
+      16                 }
+      17             }
+      18         }
+      19     }
+      20 
+      21     public class UserService
+      22     {
+      23         private readonly string connectionString = @"Data Source=F15_Plus_2;Initial Catalog=DBKursova;Integrated Security=True";
+      24 
+      25         // Метод оновлення пароля тепер централізовано в UserService
+      26         public void UpdatePassword(int userId, string newPassword)
+      27         {
+      28             using (SqlConnection connection = new SqlConnection(connectionString))
+      29             {
+      30                 connection.Open();
+      31                 string updatePasswordQuery = @"
+      32                 UPDATE AppUser SET password_user = @Password 
+      33                 WHERE id_user = @UserId";
+      34 
+      35                 using (SqlCommand cmd = new SqlCommand(updatePasswordQuery, connection))
+      36                 {
+      37                     cmd.Parameters.AddWithValue("@Password", newPassword);
+      38                     cmd.Parameters.AddWithValue("@UserId", userId);
+      39                     cmd.ExecuteNonQuery();
+      40                 }
+      41             }
+      42         }
+      43     }
+     Код після рефакторингу:
+     Метод UpdateUserInformation видалено з форми Registration, а логіка оновлення пароля централізована в UserService.UpdatePassword. Це зменшує дублювання коду та робить структуру програми логічнішою.
+      1 public class UserService
+      2     {
+      3         private readonly string connectionString = @"Data Source=F15_Plus_2;Initial Catalog=DBKursova;Integrated Security=True";
+      4 
+      5         // Централізований метод оновлення пароля, який замінює зайвий метод у формі Registration
+      6         public void UpdatePassword(int userId, string newPassword)
+      7         {
+      8             using (SqlConnection connection = new SqlConnection(connectionString))
+      9             {
+      10                 connection.Open();
+      11                 string updatePasswordQuery = @"
+      12                 UPDATE AppUser SET password_user = @Password 
+      13                 WHERE id_user = @UserId";
+      14 
+      15                 using (SqlCommand cmd = new SqlCommand(updatePasswordQuery, connection))
+      16                 {
+      17                     cmd.Parameters.AddWithValue("@Password", newPassword);
+      18                     cmd.Parameters.AddWithValue("@UserId", userId);
+      19                     cmd.ExecuteNonQuery();
+      20                 }
+      21             }
+      22         }
+      23     }
+      
+     Переваги використання методу:
+     Підвищення читабельності (видалення зайвого коду робить методи зрозумілішими для інших розробників).
+     Легкість підтримки (менше коду означає менше потенційних помилок та простіше обслуговування).
+	2.3.3 Combine Functions Into Class
+     Метод «Об'єднання функцій у клас» (рис. 2), описаний у книзі Мартина Флауера [1, с. 164], об'єднує кілька пов'язаних функцій у межах одного класу. Це створює більш структурований підхід до обробки даних, зменшуючи дублювання коду та покращуючи організацію.
+ 
+     Рисунок 2 – Графічне відображення суті методу об'єднання функцій у клас
+     Код до рефакторингу:
+     Методи AddUser, UpdateUser, і DeleteUser знаходяться у формі Registration та мають спільні дані, що передаються у кожен з методів, як-от connectionString.
+      1 public partial class Registration
+      2     {
+      3         private readonly string connectionString = @"Data Source=F15_Plus_2;Initial Catalog=DBKursova;Integrated Security=True";
+      4 
+      5         public void AddUser(string login, string password, string name, string surname, string email)
+      6         {
+      7             using (SqlConnection connection = new SqlConnection(connectionString))
+      8             {
+      9                 connection.Open();
+      10                 string insertQuery = "INSERT INTO AppUser (login_user, password_user, name_user, surname_user, email_user) VALUES (@Login, @Password, @Name, @Surname, @Email)";
+      11                 using (SqlCommand cmd = new SqlCommand(insertQuery, connection))
+      12                 {
+      13                     cmd.Parameters.AddWithValue("@Login", login);
+      14                     cmd.Parameters.AddWithValue("@Password", password);
+      15                     cmd.Parameters.AddWithValue("@Name", name);
+      16                     cmd.Parameters.AddWithValue("@Surname", surname);
+      17                     cmd.Parameters.AddWithValue("@Email", email);
+      18                     cmd.ExecuteNonQuery();
+      19                 }
+      20             }
+      21         }
+      22 
+      23         public void UpdateUser(int userId, string name, string surname)
+      24         {
+      25             using (SqlConnection connection = new SqlConnection(connectionString))
+      26             {
+      27                 connection.Open();
+      28                 string updateQuery = "UPDATE AppUser SET name_user = @Name, surname_user = @Surname WHERE id_user = @UserId";
+      29                 using (SqlCommand cmd = new SqlCommand(updateQuery, connection))
+      30                 {
+      31                     cmd.Parameters.AddWithValue("@UserId", userId);
+      32                     cmd.Parameters.AddWithValue("@Name", name);
+      33                     cmd.Parameters.AddWithValue("@Surname", surname);
+      34                     cmd.ExecuteNonQuery();
+      35                 }
+      36             }
+      37         }
+      38 
+      39         public void DeleteUser(int userId)
+      40         {
+      41             using (SqlConnection connection = new SqlConnection(connectionString))
+      42             {
+      43                 connection.Open();
+      44                 string deleteQuery = "DELETE FROM AppUser WHERE id_user = @UserId";
+      45                 using (SqlCommand cmd = new SqlCommand(deleteQuery, connection))
+      46                 {
+      47                     cmd.Parameters.AddWithValue("@UserId", userId);
+      48                     cmd.ExecuteNonQuery();
+      49                 }
+      50             }
+      51         }
+      52     }
+      
+     Код після рефакторингу:
+     Створено клас UserManager, де зберігається логіка управління користувачами. Логіку роботи з користувачами тепер легко підтримувати, оскільки всі функції об’єднані в одному класі, який чітко визначає свій контекст.
+      1 public class UserManager
+      2     {
+      3         private readonly string connectionString = @"Data Source=F15_Plus_2;Initial Catalog=DBKursova;Integrated Security=True";
+      4 
+      5         public void AddUser(string login, string password, string name, string surname, string email)
+      6         {
+      7             using (SqlConnection connection = new SqlConnection(connectionString))
+      8             {
+      9                 connection.Open();
+      10                 string insertQuery = "INSERT INTO AppUser (login_user, password_user, name_user, surname_user, email_user) VALUES (@Login, @Password, @Name, @Surname, @Email)";
+      11                 using (SqlCommand cmd = new SqlCommand(insertQuery, connection))
+      12                 {
+      13                     cmd.Parameters.AddWithValue("@Login", login);
+      14                     cmd.Parameters.AddWithValue("@Password", password);
+      15                     cmd.Parameters.AddWithValue("@Name", name);
+      16                     cmd.Parameters.AddWithValue("@Surname", surname);
+      17                     cmd.Parameters.AddWithValue("@Email", email);
+      18                     cmd.ExecuteNonQuery();
+      19                 }
+      20             }
+      21         }
+      22 
+      23         public void UpdateUser(int userId, string name, string surname)
+      24         {
+      25             using (SqlConnection connection = new SqlConnection(connectionString))
+      26             {
+      27                 connection.Open();
+      28                 string updateQuery = "UPDATE AppUser SET name_user = @Name, surname_user = @Surname WHERE id_user = @UserId";
+      29                 using (SqlCommand cmd = new SqlCommand(updateQuery, connection))
+      30                 {
+      31                     cmd.Parameters.AddWithValue("@UserId", userId);
+      32                     cmd.Parameters.AddWithValue("@Name", name);
+      33                     cmd.Parameters.AddWithValue("@Surname", surname);
+      34                     cmd.ExecuteNonQuery();
+      35                 }
+      36             }
+      37         }
+      38 
+      39         public void DeleteUser(int userId)
+      40         {
+      41             using (SqlConnection connection = new SqlConnection(connectionString))
+      42             {
+      43                 connection.Open();
+      44                 string deleteQuery = "DELETE FROM AppUser WHERE id_user = @UserId";
+      45                 using (SqlCommand cmd = new SqlCommand(deleteQuery, connection))
+      46                 {
+      47                     cmd.Parameters.AddWithValue("@UserId", userId);
+      48                     cmd.ExecuteNonQuery();
+      49                 }
+      50             }
+      51         }
+      52     }
+      53 
+      54     public partial class Registration : Form
+      55     {
+      56         private UserManager userManager = new UserManager();
+      57 
+      58         // Виклик методів UserManager для роботи з користувачами
+      59         public void RegisterUser()
+      60         {
+      61             userManager.AddUser("login", "password", "name", "surname", "email");
+      62         }
+      63     }
+      
+     Переваги використання методу:
+     Інкапсуляція даних (клас дозволяє зберігати довжину та ширину як приватні змінні).
+     Читабельність (легше зрозуміти код, адже методи згруповані навколо конкретного об'єкта).
+     Простота модифікації (зміни в методах не вплинуть на інші частини коду, що дозволяє легше вносити правки та розширювати функціональність).
+     
+
+     Посилання на відеозапис: https://youtu.be/10G4Dn2-1FM 
+	
+     Список використаних джерел:
+     1. Refactoring: Improving the Design of Existing Code. Addison-Wesley Professional, 1999. 464 с.
+
+
+
+Додаток А
+
+
+Рисунок А.1 – Титульний слайд презентації
+
+ 
+Рисунок А.2 – Зміст презентації
+ 
+Рисунок А.3 – Вступ з визначенням поняття рефакторингу
+
+ 
+Рисунок А.4 – Розглянуті методи рефакторингу
+ 
+Рисунок А.5 – Опис першого розглянутого методу
+
+
+Рисунок А.6 – Приклад коду до та після рефакторингу
+ 
+Рисунок А.7 – Опис другого розглянутого методу
+
+
+Рисунок А.8 – Приклад коду до та після рефакторингу
+ 
+Рисунок 9 – Опис третього розглянутого методу
+
+
+Рисунок А.10 – Приклад коду до та після рефакторингу
+
+ 
+Рисунок А.11 – Рекомендовані інструменти для рефакторингу
+
+ 
+Рисунок А.12 – Висновки щодо користі рефакторингу
+
+ 
+Рисунок А.13 – Використані джерела під час підготовки презентації
+
+ 
+Рисунок А.14 – Завершальний слайд «Дякую за увагу!»
