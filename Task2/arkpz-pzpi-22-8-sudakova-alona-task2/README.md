@@ -45,8 +45,7 @@ FocusLearn – це програмна система, призначена дл
 
 2. **Бібліотеки та залежності:**  
    - Swashbuckle.AspNetCore (для документації Swagger).  
-   - Microsoft.EntityFrameworkCore (для ORM).  
-   - Firebase Admin SDK (для роботи з Cloud Storage, якщо використовується).  
+   - Microsoft.EntityFrameworkCore (для ORM).   
 
 ## Налаштування  
 
@@ -107,6 +106,5 @@ FocusLearn – це програмна система, призначена дл
 
 ## Контакти  
 
-**Розробник:** Судакова Альона  
-**Група:** ПЗПІ-22-8  
+**Розробник:** Судакова Альона   
 **Email:** tt7255979@gmail.com
