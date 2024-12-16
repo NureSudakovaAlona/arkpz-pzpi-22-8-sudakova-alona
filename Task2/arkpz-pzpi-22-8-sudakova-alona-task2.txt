@@ -224,17 +224,145 @@ CREATE TABLE UserMethodStatistics (
 Специфікація розробленого API
 
 Таблиця Б.1 – Маршрут /api/Auth/
-ПосиланняМетодПараметриОписlogin-googleGETreturnUrlАвторизація за допомогою Google акаунтуgoogle-responseGETreturnUrlПеренаправлення login-facebookGETreturnUrlАвторизація за допомогою Facebook акаунтуfacebook-responseGETreturnUrlПеренаправлення
+Посилання
+Метод
+Параметри
+Опис
+login-google
+GET
+returnUrl
+Авторизація за допомогою Google акаунту
+google-response
+GET
+returnUrl
+Перенаправлення 
+login-facebook
+GET
+returnUrl
+Авторизація за допомогою Facebook акаунту
+facebook-response
+GET
+returnUrl
+Перенаправлення
+
 Таблиця Б.2 – Маршрут /api/Users/
-ПосиланняМетодПараметриОписmy-profileGETBearer Token, userIdОтримання інформації про особистий акаунтmy-profilePUTBearer Token, userIdРедагування особистого профілюmy-profileDELETEBearer Token, userIdВидалення особистого профілю{id}GETBearer Token, userIdОтримання запису користувача за його ідентифікаторомGETBearer TokenОтримання записів всіх користувачів (доступно лише 
-для адміністраторів)GETBearer TokenОтримання записів всіх репетиторів (для зручності студентів)
+Посилання
+Метод
+Параметри
+Опис
+my-profile
+GET
+Bearer Token, userId
+Отримання інформації про особистий акаунт
+my-profile
+PUT
+Bearer Token, userId
+Редагування особистого профілю
+my-profile
+DELETE
+Bearer Token, userId
+Видалення особистого профілю
+{id}
+GET
+Bearer Token, userId
+Отримання запису користувача за його ідентифікатором
+
+GET
+Bearer Token
+Отримання записів всіх користувачів (доступно лише 
+для адміністраторів)
+
+GET
+Bearer Token
+Отримання записів всіх репетиторів (для зручності студентів)
+
 Таблиця Б.3 – Маршрут /api/Assignments/
-ПосиланняМетодПараметриОписGETBearer TokenОтримання записів всіх завдань (доступно тільки для адміністраторів)POSTBearer TokenДодавання завдання (доступно для адміністраторів та репетиторів)my-assignmentsGETBearer TokenОтримання всіх завдань поточного користувача{id}GETBearer Token, assignmentIdОтримання запису завдання за його ідентифікатором{id}PUTBearer Token, assignmentIdРедагування запису завдання{id}DELETEBearer Token, assignmentIdВидалення запису завдання
+Посилання
+Метод
+Параметри
+Опис
+
+GET
+Bearer Token
+Отримання записів всіх завдань (доступно тільки для адміністраторів)
+
+POST
+Bearer Token
+Додавання завдання (доступно для адміністраторів та репетиторів)
+my-assignments
+GET
+Bearer Token
+Отримання всіх завдань поточного користувача
+{id}
+GET
+Bearer Token, assignmentId
+Отримання запису завдання за його ідентифікатором
+{id}
+PUT
+Bearer Token, assignmentId
+Редагування запису завдання
+{id}
+DELETE
+Bearer Token, assignmentId
+Видалення запису завдання
+
 
 Таблиця Б.4 – Маршрут /api/ConcentrationMethods/
-ПосиланняМетодПараметриОписGETBearer TokenОтримання записів всіх методів концентраціїPOSTBearer TokenДодавання методики концентрації (доступно тільки для адміністраторів){id}GETBearer Token, methodIdОтримання запису методики концентрації за його ідентифікатором{id}PUTBearer Token, methodIdРедагування запису методики концентрації (доступно тільки для адміністраторів){id}DELETEBearer Token, methodIdВидалення запису методики концентрації (доступно тільки для адміністраторів)
+Посилання
+Метод
+Параметри
+Опис
+
+GET
+Bearer Token
+Отримання записів всіх методів концентрації
+
+POST
+Bearer Token
+Додавання методики концентрації (доступно тільки для адміністраторів)
+{id}
+GET
+Bearer Token, methodId
+Отримання запису методики концентрації за його ідентифікатором
+{id}
+PUT
+Bearer Token, methodId
+Редагування запису методики концентрації (доступно тільки для адміністраторів)
+{id}
+DELETE
+Bearer Token, methodId
+Видалення запису методики концентрації (доступно тільки для адміністраторів)
+
 Таблиця Б.5 – Маршрут /api/LearningMaterials/
-ПосиланняМетодПараметриОписGETBearer TokenОтримання записів всіх навчальних матеріалівPOSTBearer TokenДодавання навчального матеріалу (доступно для адміністраторів та репетиторів)my-materialsGETBearer TokenОтримання всіх навчальних матеріалів поточного користувача{id}GETBearer Token, materialIdОтримання навчального матеріалу за його ідентифікатором{id}PUTBearer Token, materialIdРедагування навчального матеріалу (доступно тільки адміністраторам та репетиторам){id}DELETEBearer Token, materialIdВидалення навчального матеріалу (доступно для адміністраторів та репетиторів)
+Посилання
+Метод
+Параметри
+Опис
+
+GET
+Bearer Token
+Отримання записів всіх навчальних матеріалів
+
+POST
+Bearer Token
+Додавання навчального матеріалу (доступно для адміністраторів та репетиторів)
+my-materials
+GET
+Bearer Token
+Отримання всіх навчальних матеріалів поточного користувача
+{id}
+GET
+Bearer Token, materialId
+Отримання навчального матеріалу за його ідентифікатором
+{id}
+PUT
+Bearer Token, materialId
+Редагування навчального матеріалу (доступно тільки адміністраторам та репетиторам)
+{id}
+DELETE
+Bearer Token, materialId
+Видалення навчального матеріалу (доступно для адміністраторів та репетиторів)
+
 
 
 ДОДАТОК В
