@@ -97,13 +97,3 @@
    - Використовує методи концентрації на основі аналітики.
 
 ---
-
-## **База даних**
-
-### Структура:
-- **Sessions**:
-  - `SessionType`, `Duration`, `StartTime`.
-- **MethodStatistics**:
-  - `MethodName`, `TotalTime`, `ExpectedBreaks`, `MissedBreaks`.
-
----
