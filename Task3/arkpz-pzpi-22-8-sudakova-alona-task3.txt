@@ -1,0 +1,409 @@
+﻿Міністерство освіти і науки України
+Харківський національний університет радіоелектроніки
+Катедра ПІ
+
+
+
+
+
+
+
+Звіт з лабораторної роботи №3
+з дисципліни «Аналіз та рефакторинг коду»
+
+
+
+
+
+
+
+
+Виконала:
+ст. гр. ПЗПІ-22-8
+Судакова А.Д
+Перевірив:
+ст. викладач кат. ПІ
+Сокорчук І.П.
+
+
+
+
+
+Харків 2024
+
+     
+     3 РОЗРОБКА БІЗНЕС-ЛОГІКИ ТА ФУНКЦІЙ АДМІНІСТРУВАННЯ СЕРВЕРНОЇ ЧАСТИНИ ПРОГРАМНОЇ СИСТЕМИ
+1 
+2 
+3 
+     3.1 Мета роботи
+     Розробити бізнес-логіку та функції адміністрування серверної частини  програмної системи. 
+     
+     3.2 Хід роботи
+     3.2.1 Опис інженерних рішень
+     3.2.1.1 Адміністрування
+     Для забезпечення високого рівня модульності та читабельності коду створено окремий контролер AdminController (див. дод. А), який обробляє всі адміністративні функції. Це рішення дозволяє ізолювати адміністративний функціонал від загального API, що підвищує безпеку та зручність у підтримці системи.
+     Контролер використовує рольову авторизацію, завдяки чому лише користувачі з роллю Admin можуть виконувати відповідні операції. Усі адміністративні дії здійснюються через сервіс AdminService (див. дод. А), який реалізує логіку взаємодії з базою даних.
+     Адміністрування включає наступні функції:
+     – Зміна статусу користувача: дозволяє адміністратору змінювати статус профілю користувача на "Active" або "Inactive". Це забезпечує можливість блокування облікових записів за необхідності.
+     – Резервне копіювання бази даних: функція створює повний бекап бази даних у форматі .bak, що зберігається в локальній директорії.
+     – Експорт даних: реалізовано функцію експорту всіх записів з таблиці User у форматі JSON. Дані зберігаються в окремій папці.
+     – Імпорт даних: забезпечено можливість імпорту даних користувачів із JSON-файлу.
+     Ці функції допомагають адміністратору підтримувати базу даних у актуальному стані та забезпечують можливість відновлення даних у разі збою.
+     
+     3.2.1.2 Бізнес-логіка
+     Серверна частина програмної системи виконує обробку даних IoT-сесій, які зберігають інформацію про використання методик концентрації. Бізнес-логіка базується на аналізі цих даних для формування статистичних звітів, які допомагають оцінювати продуктивність користувачів.
+     Обробка даних включає:
+     – загальний час концентрації (сумарна тривалість усіх сесій типу "Concentration"); 
+– кількість перерв ("Break");
+     – кількість пропущених перерв (розраховується як різниця між очікуваними та фактичними перервами).
+     Для збереження результатів буде використовуватися таблиця UserMethodStatistics, яка дозволить отримувати звіти на основі обраного періоду (день, тиждень, місяць).
+     Для розрахунків використано наступні математичні методи:
+     –  Агрегація даних: сума часу концентрації, кількість перерв.
+     Метод розраховує кількість пропущених перерв на основі очікуваних та фактичних. CalculateExpectedBreaks повертає кількість очікуваних перерв.
+     Різниця між очікуваними та фактичними перервами використовується для визначення пропущених.
+      1 /// <summary>
+      2 /// Розрахунок пропущених перерв
+      3 /// </summary>
+      4 private int CalculateMissedBreaks(IEnumerable<IoTSession> sessions, int actualBreakCount)
+      5 {
+      6     var expectedBreakCount = CalculateExpectedBreaks(sessions);
+      7     return Math.Max(0, expectedBreakCount - actualBreakCount);
+      8 }
+      
+     Наступний метод обчислює кількість очікуваних перерв, ґрунтуючись на кількості сесій концентрації: одна перерва очікується на дві сесії концентрації.
+      	1 /// <summary>
+      2 /// Розрахунок очікуваних перерв
+      3 /// </summary>
+      4 private int CalculateExpectedBreaks(IEnumerable<IoTSession> sessions)
+      5 {
+      6     return sessions.Count(s => s.SessionType == "Concentration") / 2;
+      7 }
+      
+     Розрахунок загальної тривалості концентрації відбувається як обчислення сумарного часу концентрації для заданого періоду.
+      1 var totalConcentrationTime = sessions
+      2 	.Where(s => s.SessionType == "Concentration" & s.Duration.HasValue)
+      3 	.Sum(s => s.Duration.Value);
+     
+     Наступний метод обчислює кінцеву дату залежно від типу періоду: день, тиждень або місяць.
+      1 private DateTime GetPeriodEndDate(DateTime periodStartDate, string periodType)
+      2 {
+      3     return periodType.ToLower() switch
+      4     {
+      5         "day" => periodStartDate.AddDays(1),
+      6         "week" => periodStartDate.AddDays(7),
+      7         "month" => periodStartDate.AddMonths(1),
+      8         _ => throw new ArgumentException("Невірний тип періоду. Допустимі значення: 'Day', 'Week', 'Month'.")
+      9     };
+      10 }
+      
+     – Порівняння: визначення найефективнішої методики концентрації для певного користувача.
+     Метод обирає найефективнішу методику за критеріями: максимальна загальна тривалість концентрації (TotalConcentrationTime) та мінімальна кількість пропущених перерв (MissedBreaks).
+      1  var mostEffectiveMethod = statistics
+      2     .OrderByDescending(s => s.TotalConcentrationTime)
+      3     .ThenBy(s => s.MissedBreaks)
+      4     .FirstOrDefault();
+      
+     Діаграму взаємодії серверної частини зображено на рис. 1.
+     
+     
+     Рисунок 1 - UML діаграма взаємодії для серверної частини
+     
+     Діаграму діяльності зображено на рис. 2.
+     
+      
+     Рисунок 2 - UML діаграма діяльності для серверної частини
+
+     3.3 Висновки
+     В результаті виконання роботи реалізовано бізнес-логіку для обробки даних IoT-сесій користувачів. Система дозволяє отримувати статистику щодо використання методик концентрації, включаючи час концентрації, кількість перерв та пропущені перерви.
+     Також реалізовано функції адміністрування для зміни статусу користувачів, що забезпечує необхідний контроль за користувачами системи. Розроблений функціонал протестовано за допомогою Swagger.
+     	Посилання на відео-захист: https://youtu.be/4Z8UZ11D43U 
+
+ДОДАТОК А
+Адміністрування
+
+Код контролеру AdminController
+1 using FocusLearn.Repositories.Abstract;
+2 using Microsoft.AspNetCore.Authorization;
+3 using Microsoft.AspNetCore.Http;
+4 using Microsoft.AspNetCore.Mvc;
+5
+6 namespace FocusLearn.Controllers
+7 {
+8     [Route("api/[controller]")]
+9     [ApiController]
+10     [Authorize(Roles = "Admin")] //Дії доступні тільки адміністратору
+11     public class AdminController : ControllerBase
+12     {
+13         private readonly IAdminService _service;
+14
+15         public AdminController(IAdminService adminService)
+16         {
+17             _service = adminService;
+18         }
+19
+20         /// <summary>
+21         /// Змінити статус користувача
+22         /// </summary>
+23         [HttpPost("change-user-status")]
+24         public async Task<IActionResult> ChangeUserStatus([FromQuery] int userId, [FromQuery] string status)
+25         {
+26             if (status != "Active" && status != "Inactive")
+27                 return BadRequest("Invalid status. Allowed values are 'Active' and 'Inactive'.");
+28
+29             var result = await _service.ChangeUserStatusAsync(userId, status);
+30             if (!result)
+31                 return NotFound("User not found.");
+32
+33             return Ok($"User status changed to {status}.");
+34         }
+35
+36         /// <summary>
+37         /// Зробити бекап БД
+38         /// </summary>
+39         [HttpPost("backup-database")]
+40         public async Task<IActionResult> BackupDatabase()
+41         {
+42             try
+43             {
+44                 var backupPath = await _service.BackupDatabaseAsync();
+45                 return Ok($"Backup created successfully: {backupPath}");
+46             }
+47             catch (Exception ex)
+48             {
+49                 return StatusCode(500, ex.Message);
+50             }
+51         }
+52
+53         /// <summary>
+54         /// Експорт даних у форматі JSON
+55         /// </summary>
+56         [HttpPost("export-data")]
+57         [Authorize(Roles = "Admin")]
+58         public async Task<IActionResult> ExportData([FromBody] List<string> tableNames)
+59         {
+60             try
+61             {
+62                 // Викликаємо метод сервісу для експорту даних
+63                 var exportedFilePaths = await _service.ExportDataAsync(tableNames);
+64
+65                 // Формуємо відповідь із шляхами до файлів
+66                 return Ok(new
+67                 {
+68                     Message = "Data exported successfully.",
+69                     ExportedFiles = exportedFilePaths
+70                 });
+71             }
+72             catch (ArgumentException ex)
+73             {
+74                 return BadRequest(new { Message = ex.Message });
+75             }
+76             catch (Exception ex)
+77             {
+78                 return StatusCode(500, new { Message = "An error occurred while exporting data.", Details = ex.Message });
+79             }
+80         }
+81
+82         /// <summary>
+83         /// Імпорт даних користувачів
+84         /// </summary>
+85         [HttpPost("import-data")]
+86         [Authorize(Roles = "Admin")]
+87         public async Task<IActionResult> ImportData([FromQuery] string tableName, IFormFile file)
+88         {
+89             if (string.IsNullOrWhiteSpace(tableName))
+90                 return BadRequest(new { Message = "You need to enter a table name." });
+91
+92             if (file == null || file.Length == 0)
+93                 return BadRequest(new { Message = "File was not upload or is empty." });
+94
+95             try
+96             {
+97                 var result = await _service.ImportDataAsync(tableName, file);
+98                 return Ok(new { Message = result });
+99             }
+100             catch (Exception ex)
+101             {
+102                 return StatusCode(500, new { Message = "An error occurred.", Details = ex.Message });
+103             }
+104         }
+105     }
+106 }
+
+Код AdminService
+
+1 using FocusLearn.Models.Domain;
+2 using FocusLearn.Repositories.Abstract;
+3 using Microsoft.Data.SqlClient;
+4 using Microsoft.EntityFrameworkCore;
+5 using System.IO;
+6 using System.Text.Json;
+7
+8 namespace FocusLearn.Repositories.Implementation
+9 {
+10     public class AdminService : IAdminService
+11     {
+12         private readonly FocusLearnDbContext _context;
+13         private readonly IConfiguration _configuration;
+14         public AdminService(FocusLearnDbContext context, IConfiguration configuration)
+15         {
+16             _context = context;
+17             _configuration = configuration;
+18         }
+19
+20         /// <summary>
+21         /// Змінити статус користувача
+22         /// </summary>
+23         public async Task<bool> ChangeUserStatusAsync(int userId, string status)
+24         {
+25             var user = await _context.Users.FindAsync(userId);
+26             if (user == null)
+27                 return false;
+28
+29             user.ProfileStatus = status;
+30             await _context.SaveChangesAsync();
+31             return true;
+32         }
+33
+34         /// <summary>
+35         /// Зробити бекап БД
+36         /// </summary>
+37         public async Task<string> BackupDatabaseAsync()
+38         {
+39             try
+40             {
+41                 var backupFileName = $"FocusLearnDB_{DateTime.UtcNow:yyyyMMdd_HHmmss}.bak";
+42                 var backupPath = Path.Combine("C:\\SQLBackups", backupFileName);
+43
+44                 if (!Directory.Exists("Backups"))
+45                     Directory.CreateDirectory("Backups");
+46
+47                 var sql = $"BACKUP DATABASE FocusLearnDB TO DISK = '{backupPath}'";
+48
+49                 await using var connection = new SqlConnection(_configuration.GetConnectionString("DefaultConnection"));
+50                 await connection.OpenAsync();
+51                 using var command = new SqlCommand(sql, connection);
+52                 await command.ExecuteNonQueryAsync();
+53
+54                 return backupPath;
+55             }
+56             catch (Exception ex)
+57             {
+58                 throw new Exception($"Error creating backup: {ex.Message}");
+59             }
+60         }
+61
+62         /// <summary>
+63         /// Експорт даних у форматі JSON
+64         /// </summary>
+65         public async Task<IEnumerable<string>> ExportDataAsync(IEnumerable<string> tableNames)
+66         {
+67             var exportedFilePaths = new List<string>();
+68
+69             foreach (var tableName in tableNames)
+70             {
+71                 string jsonData;
+72                 switch (tableName.ToLower())
+73                 {
+74                     case "users":
+75                         var users = await _context.Users.ToListAsync();
+76                         jsonData = JsonSerializer.Serialize(users);
+77                         break;
+78
+79                     case "assignments":
+80                         var assignments = await _context.Assignments.ToListAsync();
+81                         jsonData = JsonSerializer.Serialize(assignments);
+82                         break;
+83
+84                     case "learningmaterials":
+85                         var materials = await _context.LearningMaterials.ToListAsync();
+86                         jsonData = JsonSerializer.Serialize(materials);
+87                         break;
+88
+89                     default:
+90                         throw new ArgumentException($"Таблиця '{tableName}' не підтримується для експорту.");
+91                 }
+92
+93                 var fileName = $"{tableName}_{DateTime.UtcNow:yyyyMMdd_HHmmss}.json";
+94                 var filePath = Path.Combine(Environment.CurrentDirectory, "Exports", fileName);
+95
+96                 if (!Directory.Exists("Exports"))
+97                     Directory.CreateDirectory("Exports");
+98
+99                 await File.WriteAllTextAsync(filePath, jsonData);
+100                 exportedFilePaths.Add(filePath);
+101             }
+102
+103             return exportedFilePaths;
+104         }
+105
+106         /// <summary>
+107         /// Імпорт даних користувачів
+108         /// </summary>
+109         public async Task<string> ImportDataAsync(string tableName, IFormFile file)
+110         {
+111             if (file == null || file.Length == 0)
+112                 return "Файл не завантажено або він порожній.";
+113
+114             var uploadsPath = Path.Combine(Environment.CurrentDirectory, "Uploads");
+115             if (!Directory.Exists(uploadsPath))
+116                 Directory.CreateDirectory(uploadsPath);
+117
+118             var filePath = Path.Combine(uploadsPath, file.FileName);
+119             using (var stream = new FileStream(filePath, FileMode.Create))
+120             {
+121                 await file.CopyToAsync(stream);
+122             }
+124             var jsonData = await File.ReadAllTextAsync(filePath);
+125
+126             switch (tableName.ToLower())
+127             {
+128                 case "users":
+129                     var users = JsonSerializer.Deserialize<List<User>>(jsonData);
+130                     if (users != null)
+131                     {
+132                         _context.Users.AddRange(users);
+133                         await _context.SaveChangesAsync();
+134                     }
+135                     break;
+137                 case "assignments":
+138                     var assignments = JsonSerializer.Deserialize<List<Assignment>>(jsonData);
+139                     if (assignments != null)
+140                     {
+141                         _context.Assignments.AddRange(assignments);
+142                         await _context.SaveChangesAsync();
+143                     }
+144                     break;
+146                 case "learningmaterials":
+147                     var materials = JsonSerializer.Deserialize<List<LearningMaterial>>(jsonData);
+148                     if (materials != null)
+149                     {
+150                         _context.LearningMaterials.AddRange(materials);
+151                         await _context.SaveChangesAsync();
+152                     }
+153                     break;
+155                 case "iotsessions":
+156                     var sessions = JsonSerializer.Deserialize<List<IoTSession>>(jsonData);
+157                     if (sessions != null)
+158                     {
+159                         _context.IoTSessions.AddRange(sessions);
+160                         await _context.SaveChangesAsync();
+161                     }
+162                     break;
+163
+164                 default:
+165                     return $"Таблиця '{tableName}' не підтримується для імпорту.";
+166             }
+167             return $"Дані успішно імпортовані у таблицю {tableName}.";
+168         }
+169     }
+170 }
+
+
+
+
+
+
+2
+
+
