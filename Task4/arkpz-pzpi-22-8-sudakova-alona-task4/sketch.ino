@@ -88,23 +88,20 @@ void displayMessage(const String& message, int duration) {
   delay(duration);
 }
 
-String getFormattedTime() {
+String getFormattedTime(time_t timestamp) {
   struct tm timeinfo;
-  if (!getLocalTime(&timeinfo)) {
-    Serial.println("Failed to obtain time");
-    return "";
-  }
+  localtime_r(&timestamp, &timeinfo);
   char timeString[24];
   strftime(timeString, sizeof(timeString), "%Y-%m-%dT%H:%M:%S", &timeinfo);
   return String(timeString);
 }
 
 // Надсилання даних сесії
-void sendSessionData(const String& type, unsigned long startTime, unsigned long endTime) {
+void sendSessionData(const String& type, time_t startTime, time_t endTime) {
   StaticJsonDocument<200> sessionDoc;
   sessionDoc["SessionType"] = type;
-  sessionDoc["StartTime"] = getFormattedTime();
-  sessionDoc["EndTime"] = getFormattedTime();
+  sessionDoc["StartTime"] = getFormattedTime(startTime);
+  sessionDoc["EndTime"] = getFormattedTime(endTime);
   sessionDoc["MethodId"] = methodId;
   sessionDoc["UserId"] = userId;
 
@@ -120,32 +117,38 @@ void sendSessionData(const String& type, unsigned long startTime, unsigned long 
 
 // Основна функція для роботи і брейку
 void startSession(const String& type, int durationMinutes) {
-  unsigned long startTime = millis();
+  time_t sessionStartTime;
+  time(&sessionStartTime); // Отримуємо початковий час в секундах від епохи
+  
+  unsigned long startMillis = millis();
   unsigned long totalTime = durationMinutes * 60 * 1000;
 
-  while (millis() - startTime < totalTime) {
+  while (millis() - startMillis < totalTime) {
     // Перевіряємо кнопку
     if (digitalRead(buttonPin) == LOW) {
       Serial.println("Кнопка натиснута. Завершуємо сесію.");
-      sendSessionData(type, startTime, millis());
+      time_t sessionEndTime;
+      time(&sessionEndTime);
+      sendSessionData(type, sessionStartTime, sessionEndTime);
       delay(500); // Антибрязкіт
       return; // Вихід з функції
     }
 
-    int secondsLeft = (totalTime - (millis() - startTime)) / 1000;
+    int secondsLeft = (totalTime - (millis() - startMillis)) / 1000;
     String message = type + ": " + String(secondsLeft) + " sec left";
-    displayMessage(message, 100); // Зменшена затримка для кращої реакції на кнопку
+    displayMessage(message, 100);
 
     if (!client.connected() || WiFi.status() != WL_CONNECTED) {
       reconnect();
     }
-    client.loop(); // Важливо для обробки MQTT повідомлень
+    client.loop();
   }
 
   tone(buzzerPin, type == "Concentration" ? 500 : 800, 300);
-  sendSessionData(type, startTime, millis());
+  time_t sessionEndTime;
+  time(&sessionEndTime);
+  sendSessionData(type, sessionStartTime, sessionEndTime);
   
-  // Якщо завершилась сесія концентрації, починаємо перерву
   if (type == "Concentration") {
     startSession("Break", breakDuration);
   }
