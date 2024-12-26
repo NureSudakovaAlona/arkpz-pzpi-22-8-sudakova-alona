@@ -115,10 +115,10 @@ void sendSessionData(const String& type, time_t startTime, time_t endTime) {
   }
 }
 
-// Основна функція для роботи і брейку
+// Основна функція для концентрації та перерви
 void startSession(const String& type, int durationMinutes) {
   time_t sessionStartTime;
-  time(&sessionStartTime); // Отримуємо початковий час в секундах від епохи
+  time(&sessionStartTime); // Отримуємо початковий час в секундах
   
   unsigned long startMillis = millis();
   unsigned long totalTime = durationMinutes * 60 * 1000;
@@ -171,6 +171,15 @@ void setup() {
   
   // Налаштування часу
   configTime(7200, 0, "pool.ntp.org"); // UTC + 2 години (для України)
+  
+  // Чекаємо на синхронізацію часу
+  Serial.println("Очікуємо синхронізації часу...");
+  struct tm timeinfo;
+  while(!getLocalTime(&timeinfo)) {
+    Serial.print(".");
+    delay(1000);
+  }
+  Serial.println("\nЧас синхронізовано!");
   
   client.setServer(mqttServer, mqttPort);
   client.setCallback(mqttCallback);
