@@ -1,0 +1,500 @@
+﻿Міністерство освіти і науки України
+Харківський національний університет радіоелектроніки
+Катедра ПІ
+
+
+
+
+
+
+
+Звіт з лабораторної роботи №4
+з дисципліни «Аналіз та рефакторинг коду»
+
+
+
+
+
+
+
+
+Виконала:
+ст. гр. ПЗПІ-22-8
+Судакова А.Д
+Перевірив:
+ст. викладач кат. ПІ
+Сокорчук І.П.
+
+
+
+
+
+Харків 2024
+
+     
+     4 РОЗРОБКА IoT КЛІЄНТА 
+(БІЗНЕС-ЛОГІКИ ТА ФУНКЦІЙ НАЛАШТУВАННЯ)
+1 
+2 
+3 
+4 
+4.1 Мета роботи
+     Розробити програмне забезпечення для  IoT або SmartDevice пристрою, створеного на базі будь-якої поширеної на  сьогодні платформи, придатної для реалізації вбудованих систем (Embedded System).
+     
+     4.2 Хід роботи
+     4.2.1 Опис інженерних рішень
+     Основою пристрою є мікроконтролер ESP32, який відповідає за підключення до Wi-Fi, обробку даних сесій переданих з сервера і передачу отриманих результатів після завершення сесій до серверної частини. Для моделювання та тестування апаратної частини використовується емулятор Arduino WOKWI. 
+     OLED-дисплей SSD1306 використовується для відображення часу сесії концентрації/перерви, що залишився. Його підключено до ESP32 через цифрові піни. SDA (Serial Data Line), лінія для передачі даних, використовується для надсилання команд і даних між ESP32 та дисплеєм та з’єднана з піном GPIO21.
+     SCL (Serial Clock Line), лінія для синхронізації, забезпечує тактові імпульси для передачі даних на лінії SDA, підключено до GPIO22.
+     Зумер (buzzer) є пасивним у даній реалізації та відповідає за подання звукових сигналів про завершення сесій. Один його контакт з'єднаний із заземленням (GND ESP32). Другий контакт підключений до цифрового піну 32 ESP32.
+     При натисненні кнопки у даному ІоТ-пристрої, сесія примусово припиняється та дані про сесію відправлються на сервер. Один її контакт з'єднаний із заземленням (GND ESP32). Інший контакт підключений до цифрового піну 25 ESP32.
+     Взаємодія між пристроєм та сервером реалізується за допомогою протоколу MQTT, який дозволяє публікувати дані про обрану методику концентрації до брокера та отримувати дані з ІоТ-пристрою на сервер. 
+     Програмне забезпечення пристрою розроблене мовою програмування C++ із використанням спеціалізованих бібліотек: PubSubClient для роботи з протоколом MQTT, зокрема публікації та підписки на повідомлення; ArduinoJson для серіалізації та десеріалізації JSON-даних, що використовуються для обміну інформацією між пристроєм і сервером; Adafruit SSD1306 – для керування OLED-дисплеєм на базі контролера SSD1306.  Та Adafruit GFX Library для створення графічних елементів (текст, лінії, форми) на дисплеї; time.h для визначення часу у форматі ISO 8601, що забезпечує відповідність міжнародним стандартам.
+     На рис. 1 зображено схему ІоТ пристрою.
+     
+     
+     Рисунок 1 – Схема ІоТ пристрою програмної системи FocusLearn
+     
+     4.2.2 Бізнес-логіка IoT клієнта
+     Було створено додатковий ендпоінт у IoTSessionController для надсилання даних ІоТ клієнту. Для цього користувачеві необхідно обрати методику за відповідним ідентифікатором. 
+1 [HttpPost("send-session")]
+2 public async Task<IActionResult> SendSessionData(int methodId)
+3 {
+4     var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier) ??
+5              User.FindFirst("sub") ??
+6              User.FindFirst("UserId");
+7 
+8     if (userIdClaim == null)
+9     {
+10         return Unauthorized("User ID not found in token");
+11     }
+12 
+13     var userId = int.Parse(userIdClaim.Value);
+14 
+15     var method = await _serviceMethod.GetMethodByIdAsync(methodId);
+16 
+17     if (method == null)
+18         return NotFound("Method not found.");
+19 
+20     // Формуємо JSON для передачі на IoT-пристрій
+21     var payLoad = new
+22     {
+23         WorkDuration = method.WorkDuration,
+24         BreakDuration = method.BreakDuration,
+25         UserId = userId,
+26         MethodId = methodId,
+27         SessionType = "Concentration"
+28     };
+29 
+30     await _mqttClient.PublishMessageAsync("focuslearn/concentration", System.Text.Json.JsonSerializer.Serialize(payLoad));
+31 
+32     return Ok("Session data sent to IoT device.");
+33 }
+
+     Обробка сесій концентрації відповідає за запуск сесій, обчислення залишкового часу та автоматичне перемикання між сесіями концентрації та відпочинку.
+     Програмний код ІоТ системи наведено у дод. А.
+     Наступна функція відправляє дані про сесію на MQTT сервер у форматі JSON.
+
+1 // Надсилання даних сесії
+2 void sendSessionData(const String& type, time_t startTime, time_t endTime) {
+3   StaticJsonDocument<200> sessionDoc;
+4   sessionDoc["SessionType"] = type;
+5   sessionDoc["StartTime"] = getFormattedTime(startTime);
+6   sessionDoc["EndTime"] = getFormattedTime(endTime);
+7   sessionDoc["MethodId"] = methodId;
+8   sessionDoc["UserId"] = userId;
+9 
+10   String sessionData;
+11   serializeJson(sessionDoc, sessionData);
+12   
+13   if (client.publish(sessionTopic, sessionData.c_str())) {
+14     Serial.println("Дані сесії успішно надіслано: " + sessionData);
+15   } else {
+16     Serial.println("Помилка відправки даних сесії");
+17   }
+18 }
+     
+     4.2.3 Налаштування IoT клієнта 
+     Функція відповідає за підключення до WiFi мережі та перевірку статусу з'єднання.
+1 // Ініціалізація WiFi
+2 void setupWiFi() {
+3   WiFi.begin(ssid);
+4   Serial.print("Підключаємося до WiFi");
+5   while (WiFi.status() != WL_CONNECTED) {
+6     delay(500);
+7     Serial.print(".");
+8   }
+9   Serial.println(" Успішно підключено до Wi-Fi!");
+10   Serial.print("ІР-адреса: ");
+11   Serial.println(WiFi.localIP());
+12 }
+     Наступна функція підключає клієнт до MQTT брокера та підписує його на відповідний топік.
+1 // Підключення до MQTT
+2 void reconnect() {
+3   while (!client.connected()) {
+4     Serial.print("Підключаємося до MQTT...");
+5     String clientId = "ESP32Client-" + String(random(0xffff), HEX);
+6     if (client.connect(clientId.c_str())) {
+7       Serial.println(" Успішно підключено!");
+8       client.subscribe(mqttTopic);
+9     } else {
+10       Serial.print("Помилка: ");
+11       Serial.println(client.state());
+12       delay(5000);
+13     }
+14   }
+15 }
+
+     Наступний фрагмент обробляє вхідні повідомлення та зберігає отримані параметри для запуску сесії.
+1 // Обробка MQTT повідомлень
+2 void mqttCallback(char* topic, byte* payload, unsigned int length) {
+3   String message = "";
+4   for (int i = 0; i < length; i++) {
+5     message += (char)payload[i];
+6   }
+7 
+8   StaticJsonDocument<200> doc;
+9   if (deserializeJson(doc, message) == DeserializationError::Ok) {
+10     workDuration = doc["WorkDuration"];
+11     breakDuration = doc["BreakDuration"];
+12     methodId = doc["MethodId"];
+13     userId = doc["UserId"];
+14     startSession("Concentration", workDuration);
+15   } else {
+16     Serial.println("Помилка десеріалізації JSON.");
+17   }
+18 }
+
+     Код сервісу для роботи з MQTT наведено у дод. Б.
+     
+     4.2.4 UML діаграми
+     UML діаграма прецедентів IoT клієнта описує, як користувач взаємодіє із програмною системою через ІоТ пристрій, включаючи налаштування сесій і відправку звітів на сервер. Діаграму зображено на рис. 2.
+     
+ 
+     Рисунок 2 – UML діаграма прецедентів IoT клієнта
+     
+     UML діаграма діяльності IoT клієнта демонструє процес від отримання налаштувань до завершення сесії, включаючи математичну обробку та відправку даних на сервер. Діаграму діяльності зображено на рис. 3.
+     
+      
+     Рисунок 3 – UML діаграма діяльності IoT клієнта
+     4.3 Висновки
+     Було розроблено IoT-клієнт для оптимізації навчального процесу, що включає налаштування мережевого підключення, бізнес-логіку для обробки даних сесій, інтеграцію з OLED-дисплеєм і кнопкою, а також передачу даних на сервер через MQTT. Система забезпечує автоматичне перепідключення до мережі та підтримує гнучке налаштування робочих сесій і перерв. Рішення успішно інтегрує програмне забезпечення, апаратні засоби та мережеві технології для ефективного управління сесіями концентрації.
+     	
+     Посилання на відео-захист: https://youtu.be/CMBtxff_fqc 
+
+ДОДАТОК А
+Програмний код ІоТ клієнта
+
+1 #include <WiFi.h>
+2 #include <PubSubClient.h>
+3 #include <Adafruit_SSD1306.h>
+4 #include <ArduinoJson.h>
+5 #include <time.h>
+6 
+7 // WiFi налаштування
+8 const char* ssid = "Wokwi-GUEST";
+9 const char* mqttServer = "34.243.217.54";
+10 const int mqttPort = 1883;
+11 const char* mqttTopic = "focuslearn/concentration";
+12 const char* sessionTopic = "focuslearn/sessions";
+13 
+14 WiFiClient espClient;
+15 PubSubClient client(espClient);
+16 
+17 // OLED дисплей
+18 #define SCREEN_WIDTH 128
+19 #define SCREEN_HEIGHT 64
+20 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
+21 
+22 // Піни
+23 const int buzzerPin = 32;
+24 const int buttonPin = 25;
+25 
+26 // Дані сесії
+27 int workDuration = 0;
+28 int breakDuration = 0;
+29 int methodId = 0;
+30 int userId = 0;
+31 
+32 // Ініціалізація WiFi
+33 void setupWiFi() {
+34   WiFi.begin(ssid);
+35   Serial.print("Підключаємося до WiFi");
+36   while (WiFi.status() != WL_CONNECTED) {
+37     delay(500);
+38     Serial.print(".");
+39   }
+40   Serial.println(" Успішно підключено до Wi-Fi!");
+41   Serial.print("ІР-адреса: ");
+42   Serial.println(WiFi.localIP());
+43 }
+44 
+45 // Обробка MQTT повідомлень
+46 void mqttCallback(char* topic, byte* payload, unsigned int length) {
+47   String message = "";
+48   for (int i = 0; i < length; i++) {
+49     message += (char)payload[i];
+50   }
+51 
+52   StaticJsonDocument<200> doc;
+53   if (deserializeJson(doc, message) == DeserializationError::Ok) {
+54     workDuration = doc["WorkDuration"];
+55     breakDuration = doc["BreakDuration"];
+56     methodId = doc["MethodId"];
+57     userId = doc["UserId"];
+58     startSession("Concentration", workDuration);
+59   } else {
+60     Serial.println("Помилка десеріалізації JSON.");
+61   }
+62 }
+63 
+64 // Підключення до MQTT
+65 void reconnect() {
+66   while (!client.connected()) {
+67     Serial.print("Підключаємося до MQTT...");
+68     String clientId = "ESP32Client-" + String(random(0xffff), HEX);
+69     if (client.connect(clientId.c_str())) {
+70       Serial.println(" Успішно підключено!");
+71       client.subscribe(mqttTopic);
+72     } else {
+73       Serial.print("Помилка: ");
+74       Serial.println(client.state());
+75       delay(5000);
+76     }
+77   }
+78 }
+79 
+80 // Функція відображення на дисплеї
+81 void displayMessage(const String& message, int duration) {
+82   display.clearDisplay();
+83   display.setTextSize(1);
+84   display.setTextColor(SSD1306_WHITE);
+85   display.setCursor(0, 10);
+86   display.println(message);
+87   display.display();
+88   delay(duration);
+89 }
+90 
+91 String getFormattedTime(time_t timestamp) {
+92   struct tm timeinfo;
+93   localtime_r(&timestamp, &timeinfo);
+94   char timeString[24];
+95   strftime(timeString, sizeof(timeString), "%Y-%m-%dT%H:%M:%S", &timeinfo);
+96   return String(timeString);
+97 }
+98 
+99 // Надсилання даних сесії
+100 void sendSessionData(const String& type, time_t startTime, time_t endTime) {
+101   StaticJsonDocument<200> sessionDoc;
+102   sessionDoc["SessionType"] = type;
+103   sessionDoc["StartTime"] = getFormattedTime(startTime);
+104   sessionDoc["EndTime"] = getFormattedTime(endTime);
+105   sessionDoc["MethodId"] = methodId;
+106   sessionDoc["UserId"] = userId;
+107 
+108   String sessionData;
+109   serializeJson(sessionDoc, sessionData);
+110   
+111   if (client.publish(sessionTopic, sessionData.c_str())) {
+112     Serial.println("Дані сесії успішно надіслано: " + sessionData);
+113   } else {
+114     Serial.println("Помилка відправки даних сесії");
+115   }
+116 }
+117 
+118 // Основна функція для концентрації та перерви
+119 void startSession(const String& type, int durationMinutes) {
+120   time_t sessionStartTime;
+121   time(&sessionStartTime); // Отримуємо початковий час в секундах
+122   
+123   unsigned long startMillis = millis();
+124   unsigned long totalTime = durationMinutes * 60 * 1000;
+125 
+126   while (millis() - startMillis < totalTime) {
+127     // Перевіряємо кнопку
+128     if (digitalRead(buttonPin) == LOW) {
+129       Serial.println("Кнопка натиснута. Завершуємо сесію.");
+130       time_t sessionEndTime;
+131       time(&sessionEndTime);
+132       sendSessionData(type, sessionStartTime, sessionEndTime);
+133       delay(500); // Антибрязкіт
+134       return; // Вихід з функції
+135     }
+136 
+137     int secondsLeft = (totalTime - (millis() - startMillis)) / 1000;
+138     String message = type + ": " + String(secondsLeft) + " sec left";
+139     displayMessage(message, 100);
+140 
+141     if (!client.connected() || WiFi.status() != WL_CONNECTED) {
+142       reconnect();
+143     }
+144     client.loop();
+145   }
+146 
+147   tone(buzzerPin, type == "Concentration" ? 500 : 800, 300);
+148   time_t sessionEndTime;
+149   time(&sessionEndTime);
+150   sendSessionData(type, sessionStartTime, sessionEndTime);
+151   
+152   if (type == "Concentration") {
+153     startSession("Break", breakDuration);
+154   }
+155 }
+156 
+157 // Ініціалізація
+158 void setup() {
+159   Serial.begin(115200);
+160   pinMode(buzzerPin, OUTPUT);
+161   pinMode(buttonPin, INPUT_PULLUP);
+162 
+163   if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
+164     Serial.println(F("SSD1306 allocation failed"));
+165     for (;;) ;
+166   }
+167   display.clearDisplay();
+168   display.display();
+169 
+170   setupWiFi();
+171   
+172   // Налаштування часу
+173   configTime(7200, 0, "pool.ntp.org"); // UTC + 2 години (для України)
+174   
+175   client.setServer(mqttServer, mqttPort);
+176   client.setCallback(mqttCallback);
+177   reconnect();
+178 }
+179 
+180 // Основний цикл
+181 void loop() {
+182   if (WiFi.status() != WL_CONNECTED) setupWiFi();
+183   if (!client.connected()) reconnect();
+184   client.loop();
+185 }
+
+
+ДОДАТОК Б
+Сервіс для роботи з MQTT
+
+1 using MQTTnet;
+2 using MQTTnet.Client;
+3 using MQTTnet.Protocol;
+4 using System;
+5 using System.Threading.Tasks;
+6 using System.Text.Json;
+7 using FocusLearn.Models.DTO;
+8 using FocusLearn.Repositories.Abstract;
+9 public class MqttClientService
+10 {
+11     private readonly IMqttClient _mqttClient;
+12     private readonly IServiceScopeFactory _scopeFactory;
+13     private readonly ILogger<MqttClientService> _logger;
+14 
+15     public MqttClientService(
+16         IServiceScopeFactory scopeFactory,
+17         ILogger<MqttClientService> logger)
+18     {
+19         var factory = new MqttFactory();
+20         _mqttClient = factory.CreateMqttClient();
+21         _scopeFactory = scopeFactory;
+22         _logger = logger;
+23 
+24         // Підписуємось на отримання повідомлень
+25         _mqttClient.ApplicationMessageReceivedAsync += HandleMessageAsync;
+26     }
+27 
+28     // Підключення до брокера
+29     public async Task ConnectAsync()
+30     {
+31         if (!_mqttClient.IsConnected)
+32         {
+33             var options = new MqttClientOptionsBuilder()
+34                 .WithTcpServer("34.243.217.54", 1883) // Оновлено адресу брокера
+35                 .Build();
+36 
+37             await _mqttClient.ConnectAsync(options);
+38 
+39             // Підписуємось на топік після підключення
+40             var topicFilter = new MqttTopicFilterBuilder()
+41                 .WithTopic("focuslearn/sessions")
+42                 .Build();
+43 
+44             await _mqttClient.SubscribeAsync(topicFilter);
+45             _logger.LogInformation("Connected to MQTT broker and subscribed to topics");
+46         }
+47     }
+48 
+49     // Обробка отриманих повідомлень
+50     private async Task HandleMessageAsync(MqttApplicationMessageReceivedEventArgs e)
+51     {
+52         try
+53         {
+54             var payload = System.Text.Encoding.UTF8.GetString(e.ApplicationMessage.Payload);
+55             _logger.LogInformation($"Received message: {payload}");
+56 
+57             var sessionData = JsonSerializer.Deserialize<IoTSessionDTO>(payload);
+58 
+59             using (var scope = _scopeFactory.CreateScope())
+60             {
+61                 var sessionService = scope.ServiceProvider.GetRequiredService<IIoTSessionService>();
+62                 var result = await sessionService.SaveIoTSessionAsync(sessionData);
+63 
+64                 if (!result)
+65                 {
+66                     _logger.LogError("Failed to save session data");
+67                 }
+68                 else
+69                 {
+70                     _logger.LogInformation($"Successfully saved session for user {sessionData.UserId}");
+71                 }
+72             }
+73         }
+74         catch (Exception ex)
+75         {
+76             _logger.LogError(ex, "Error processing MQTT message");
+77         }
+78     }
+79 
+80     // Публікація повідомлення
+81     public async Task PublishMessageAsync(string topic, string payload)
+82     {
+83         try
+84         {
+85             if (!_mqttClient.IsConnected)
+86             {
+87                 await ConnectAsync();
+88             }
+89 
+90             var message = new MqttApplicationMessageBuilder()
+91                 .WithTopic(topic)
+92                 .WithPayload(payload)
+93                 .WithQualityOfServiceLevel(MqttQualityOfServiceLevel.AtMostOnce)
+94                 .Build();
+95 
+96             await _mqttClient.PublishAsync(message);
+97             _logger.LogInformation($"Message sent: {topic}, Payload: {payload}");
+98         }
+99         catch (Exception ex)
+100         {
+101             _logger.LogError(ex, "Error publishing message: {Message}", ex.Message);
+102         }
+103     }
+104 
+105     // Метод для відключення
+106     public async Task DisconnectAsync()
+107     {
+108         if (_mqttClient.IsConnected)
+109         {
+110             await _mqttClient.DisconnectAsync();
+111             _logger.LogInformation("Disconnected from MQTT broker");
+112         }
+113     }
+114 }
+
+
+
+
+
+
+2
+
+
