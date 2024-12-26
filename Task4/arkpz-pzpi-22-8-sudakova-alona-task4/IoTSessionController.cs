@@ -67,6 +67,9 @@ namespace FocusLearn.Controllers
             return Ok(sessions);
         }
 
+        /// <summary>
+        /// Збереження IoT-сесії
+        /// </summary>
         [HttpPost("save-session")]
         public async Task<IActionResult> SaveIoTSession([FromBody] IoTSessionDTO sessionDto)
         {
@@ -80,9 +83,9 @@ namespace FocusLearn.Controllers
             return Ok("IoT session saved successfully.");
         }
 
-
-
-
+        /// <summary>
+        /// Надсилання деталей обраної методики до ІоТ системи
+        /// </summary>
         [HttpPost("send-session")]
         public async Task<IActionResult> SendSessionData(int methodId)
         {
