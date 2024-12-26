@@ -50,6 +50,9 @@ namespace FocusLearn.Repositories.Implementation
                 .ToListAsync();
         }
 
+        /// <summary>
+        /// Збереження IoT-сесії до БД
+        /// </summary>
         public async Task<bool> SaveIoTSessionAsync(IoTSessionDTO sessionDto)
         {
             var session = new IoTSession
