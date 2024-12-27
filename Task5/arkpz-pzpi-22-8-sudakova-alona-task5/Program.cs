@@ -104,7 +104,6 @@ builder.Services.AddAuthentication(options =>
     facebookOptions.Fields.Add("locale");
     facebookOptions.Events.OnCreatingTicket = (context) =>
     {
-        // Îòðèìàííÿ URL ôîòî ïðîô³ëþ
         var picture = context.User.TryGetProperty("picture", out var pictureJson) &&
                       pictureJson.TryGetProperty("data", out var dataJson) &&
                       dataJson.TryGetProperty("url", out var urlJson)
@@ -115,8 +114,6 @@ builder.Services.AddAuthentication(options =>
         {
             context.Identity.AddClaim(new Claim("picture", picture));
         }
-
-        // Îòðèìàííÿ ìîâè
         var locale = context.User.TryGetProperty("locale", out var localeJson)
             ? localeJson.GetString()
             : "en";
