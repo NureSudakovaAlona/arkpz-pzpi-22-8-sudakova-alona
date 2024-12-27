@@ -14,7 +14,6 @@ using MQTTnet;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
@@ -45,7 +44,8 @@ builder.Services.AddSwaggerGen(c =>
         }
     });
 });
-// Configure Authentication
+
+// Налаштування автентифікації
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -104,7 +104,7 @@ builder.Services.AddAuthentication(options =>
     facebookOptions.Fields.Add("locale");
     facebookOptions.Events.OnCreatingTicket = (context) =>
     {
-        // ��������� URL ���� �������
+        // Îòðèìàííÿ URL ôîòî ïðîô³ëþ
         var picture = context.User.TryGetProperty("picture", out var pictureJson) &&
                       pictureJson.TryGetProperty("data", out var dataJson) &&
                       dataJson.TryGetProperty("url", out var urlJson)
@@ -116,7 +116,7 @@ builder.Services.AddAuthentication(options =>
             context.Identity.AddClaim(new Claim("picture", picture));
         }
 
-        // ��������� ����
+        // Îòðèìàííÿ ìîâè
         var locale = context.User.TryGetProperty("locale", out var localeJson)
             ? localeJson.GetString()
             : "en";
@@ -131,11 +131,11 @@ builder.Services.AddAuthentication(options =>
 
 });
 
-// Add database context
+// Додавання database context
 builder.Services.AddDbContext<FocusLearnDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// Add memory cache for sessions
+// Додавання кешу пам'яті для сесій
 builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSession(options =>
 {
@@ -145,7 +145,7 @@ builder.Services.AddSession(options =>
     options.Cookie.IsEssential = true;
 });
 
-    
+// Додавання сервісів   
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IConcentrationMethodService, ConcentrationMethodService>();
@@ -161,6 +161,8 @@ builder.Services.AddSingleton<IMqttClient>(sp =>
     var factory = new MqttFactory();
     return factory.CreateMqttClient();
 });
+
+//Додавання сервісів для роботи з MQTT
 builder.Services.AddSingleton<MqttClientService>();
 
 var app = builder.Build();
@@ -174,6 +176,23 @@ catch (Exception ex)
 {
     var logger = app.Services.GetRequiredService<ILogger<Program>>();
     logger.LogError(ex, "Failed to connect to MQTT broker during startup");
+}
+
+using (var scope = app.Services.CreateScope())
+{
+    var adminService = scope.ServiceProvider.GetRequiredService<IAdminService>();
+
+    try
+    {
+        // Автоматичний бекап
+        Console.WriteLine("Автоматичний бекап бази даних...");
+        var backupPath = await adminService.BackupDatabaseAsync();
+        Console.WriteLine($"Бекап бази даних збережено у: {backupPath}");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Помилка під час створення автоматичного бекапу: {ex.Message}");
+    }
 }
 
 // Configure the HTTP request pipeline.
