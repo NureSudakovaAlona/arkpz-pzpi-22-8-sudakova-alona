@@ -1,131 +1,147 @@
-# FocusLearn
+```markdown
+# Документація проєкту FocusLearn
 
-FocusLearn — це програмна система, яка підтримує навчання користувачів, автоматизуючи процес концентрації через інтеграцію з IoT-пристроями. Система надає функції адміністрування, обробки статистики, роботи IoT-клієнта та взаємодії з сервером через протокол MQTT.
+## Огляд
 
-## Особливості
-
-- **Функції адміністрування**:
-  - Зміна статусу користувача (Active/Inactive).
-  - Бекап та відновлення бази даних (схема та дані).
-  - Експорт/імпорт даних у форматі JSON.
-
-- **IoT-клієнт**:
-  - Інтеграція через протокол MQTT.
-  - Управління концентраційними сесіями за допомогою вібрації та звуку.
-  - Збереження даних про сесії у базу даних.
-
-- **Бізнес-логіка**:
-  - Розрахунок статистики продуктивності користувача.
-  - Підрахунок ефективності методик концентрації.
-  - Оновлення статистики автоматично на сервері.
+FocusLearn – це програмна система, створена для покращення навчального процесу шляхом інтеграції IoT-пристроїв, управління навчальними сесіями та реалізації серверної бізнес-логіки. Проєкт включає функціонал для управління користувачами, методиками концентрації та аналітикою сесій. IoT-пристрої підключаються до системи через MQTT для моніторингу та взаємодії в реальному часі.
 
 ---
 
-## Вимоги
+## Компоненти системи
 
-### Серверна частина
-1. **Програмне забезпечення**:
-   - .NET SDK 7.0 або новіша версія.
-   - SQL Server для зберігання бази даних.
+### 1. **Серверна частина**
+- **Технології**: ASP.NET Core з архітектурою REST API.
+- **База даних**: Microsoft SQL Server, управління схемою та даними через Entity Framework Core.
+- **Авторизація**: Використовується JWT-токени та підтримка OAuth 2.0 (Google, Facebook).
+- **Бізнес-логіка**: Обробка статистики сесій, управління ролями користувачів та оцінка ефективності методик концентрації.
+- **Інтеграція**: MQTT-протокол для обміну даними з IoT-пристроями.
 
-2. **Додаткові бібліотеки**:
-   - `Microsoft.EntityFrameworkCore`.
-   - `Microsoft.AspNetCore.Authentication.Google` для авторизації.
-   - `Microsoft.Data.SqlClient`.
+### 2. **IoT-клієнт**
+- **Платформа**: Мікроконтролер ESP32 з WiFi.
+- **Бібліотеки**: PubSubClient, Adafruit SSD1306, Adafruit GFX, ArduinoJson.
+- **Функціонал**:
+  - Відображення типу сесії та часу, що залишився.
+  - Сигналізація початку та завершення сесій через буззер або вібрацію.
+  - Передача даних про сесії на сервер для збереження та аналізу.
 
-3. **Налаштування бази даних**:
-   - У файлі `appsettings.json` має бути вказаний `DefaultConnection` для SQL Server:
-     ```json
-     {
-       "ConnectionStrings": {
-         "DefaultConnection": "Server=localhost;Database=FocusLearnDB;Trusted_Connection=True;MultipleActiveResultSets=true"
-       }
-     }
-     ```
+---
 
-### IoT-клієнт
-1. **Платформа IoT**:
-   - ESP32.
-   - Онлайн-брокер MQTT (наприклад, [EMQX](https://www.emqx.com/en/mqtt/public-mqtt5-broker)).
+## Вимоги до середовища
 
-2. **Додаткові компоненти**:
-   - OLED-дисплей SSD1306.
-   - Кнопка.
-   - Вібромотор або звуковий модуль.
+### Програмне забезпечення:
+- **Операційна система**: Windows 10 або новіша.
+- **Середовище розробки**: Visual Studio 2022 із підтримкою .NET 6.0.
+- **Сервер бази даних**: Microsoft SQL Server.
+- **IoT-розробка**: Arduino IDE із драйвером ESP32.
 
-3. **Arduino IDE**:
-   - Встановлені бібліотеки:
-     - `Adafruit GFX Library`.
-     - `Adafruit SSD1306`.
-     - `PubSubClient`.
-     - `ArduinoJson`.
+### Залежності:
+- Сервер:
+  - `Microsoft.EntityFrameworkCore`
+  - `Microsoft.AspNetCore.Authentication.JwtBearer`
+  - `Microsoft.AspNetCore.Authentication.Google`
+  - `Microsoft.AspNetCore.Authentication.Facebook`
+- IoT:
+  - `PubSubClient`
+  - `Adafruit SSD1306`
+  - `Adafruit GFX`
+  - `ArduinoJson`
 
 ---
 
 ## Інструкція з розгортання
 
-### 1. Розгортання серверної частини
+### Крок 1: Клонування репозиторію
+Скористайтеся командою:
+```bash
+git clone https://github.com/NureSudakovaAlona/FocusLearn.git
+```
 
-1. Встановіть .NET SDK 7.0.
-2. Налаштуйте `appsettings.json` із правильним підключенням до бази даних.
-3. Виконайте міграції:
-   ```bash
-   dotnet ef database update
+### Крок 2: Налаштування серверної частини
+1. Відкрийте проєкт у Visual Studio.
+2. Налаштуйте `appsettings.json`:
+    - **Підключення до бази даних**:
+      ```json
+      "ConnectionStrings": {
+        "DefaultConnection": "YOUR_CONNECTION_STRING"
+      }
+      ```
+    - **JWT-конфігурація**:
+      ```json
+      "Jwt": {
+        "SecretKey": "YOUR_SECRET_KEY",
+        "Issuer": "FocusLearnApp",
+        "Audience": "FocusLearnUsers"
+      }
+      ```
+    - **OAuth дані**:
+      ```json
+      "Authentication": {
+        "Facebook": {
+          "AppId": "YOUR_APP_ID",
+          "AppSecret": "YOUR_APP_SECRET"
+        },
+        "Google": {
+          "ClientId": "YOUR_CLIENT_ID",
+          "ClientSecret": "YOUR_CLIENT_SECRET"
+        }
+      }
+      ```
+    - **MQTT конфігурація**:
+      ```json
+      "Mqtt": {
+        "BrokerAddress": "broker.emqx.io",
+        "BrokerPort": 1883,
+        "ClientId": "FocusLearnServer"
+      }
+      ```
+
+### Крок 3: Ініціалізація бази даних
+1. Запустіть сервер за допомогою Visual Studio (`F5` або `dotnet run`).
+2. Викличте метод:
    ```
-4. Запустіть сервер:
-   ```bash
-   dotnet run
+   POST /api/Admin/restore-database
    ```
+   За замовчуванням буде використаний файл із папки `Backups`.
 
-### 2. Налаштування IoT-клієнта
+### Крок 4: Запуск серверної частини
+Переконайтеся, що сервер доступний за адресою:
+```
+https://localhost:7124/swagger/index.html
+```
 
-1. Перейдіть на [Wokwi](https://wokwi.com/) або використовуйте фізичний пристрій ESP32.
-2. Підключіть компоненти:
-   - OLED-дисплей:
-     - `SCL` -> `D21`, `SDA` -> `D22`.
-   - Кнопка:
-     - `BTN1` -> `D25`.
-   - Вібромотор або дзвінок:
-     - `BZ1` -> `D32`.
-3. Завантажте код IoT у ESP32 через Arduino IDE.
+### Крок 5: Налаштування IoT-клієнта
+1. Відкрийте код IoT у Arduino IDE.
+2. Налаштуйте такі параметри:
+    - **WiFi**:
+      ```c++
+      const char* ssid = "YOUR_WIFI_SSID";
+      const char* password = "YOUR_WIFI_PASSWORD";
+      ```
+    - **MQTT**:
+      ```c++
+      const char* mqttServer = "broker.emqx.io";
+      const int mqttPort = 1883;
+      const char* mqttTopic = "focuslearn/concentration";
+      ```
+3. Завантажте код на ESP32.
+4. Перевірте підключення до WiFi та MQTT.
 
-4. Налаштуйте WiFi та MQTT:
-   - Задайте `ssid` і `password` для WiFi.
-   - Вкажіть `mqttServer` у коді:
-     ```cpp
-     const char* mqttServer = "broker.emqx.io";
-     ```
-
----
-
-## Основні API-ендпоінти
-
-### Адміністрування
-- **POST** `/api/Admin/change-user-status`: Змінити статус користувача.
-- **POST** `/api/Admin/backup-database`: Створити бекап бази даних.
-- **POST** `/api/Admin/export-data`: Експортувати дані таблиць.
-
-### Бізнес-логіка
-- **GET** `/api/BusinessLogic/user-statistics`: Отримати статистику користувача.
-- **POST** `/api/BusinessLogic/update-method-statistics`: Оновити статистику методик.
-- **GET** `/api/BusinessLogic/most-effective-method`: Визначити найефективнішу методику.
-
-### IoT-клієнт
-- **GET** `/api/IoT/get-method/{id}`: Отримати методику за ID.
-- **POST** `/api/IoT/add-session`: Додати сесію IoT.
+### Крок 6: Тестування
+1. Виконайте тестові запити через Swagger або Postman:
+   ```
+   /api/IoTSession/send-session
+   ```
+2. Підтвердьте взаємодію IoT-пристрою з сервером (зміна статусу на OLED, сигнали буззера, відправка сесій до бази даних).
 
 ---
 
-## Демонстрація роботи
+## Ліцензія
 
-1. **Функції адміністрування**:
-   - Зміна статусу користувача.
-   - Автоматичний бекап бази даних при запуску.
-2. **IoT-клієнт**:
-   - Отримання методики з API.
-   - Відлік сесій концентрації на OLED-дисплеї.
-   - Передача даних про сесії на сервер через MQTT.
-3. **Бізнес-логіка**:
-   - Автоматичне оновлення статистики продуктивності.
+Проєкт ліцензований під ліцензією MIT. Див. файл `LICENSE` для деталей.
 
 ---
+
+## Контриб'ютори
+
+- **Судакова Альона** - Розробка програмної системи та інтеграція компонентів.
+```
